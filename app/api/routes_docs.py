@@ -3,11 +3,16 @@ from pathlib import Path
 from typing import List, Dict, Any
 from fastapi import APIRouter, UploadFile, File, HTTPException
 
+from pydantic import BaseModel
 from app.config import UPLOADS_DIR
-from app.core.rag_engine import process_and_index_document
+from app.core.rag_engine import process_and_index_document, process_and_index_youtube
 from app.core.vector_store import vector_store_manager
 
 router = APIRouter(prefix="/api/docs", tags=["Documents"])
+
+
+class YouTubeIndexRequest(BaseModel):
+    url: str
 
 
 @router.get("")
@@ -47,6 +52,20 @@ async def upload_and_index_documents(files: List[UploadFile] = File(...)):
             })
 
     return {"uploaded": results, "stats": vector_store_manager.get_stats()}
+
+
+@router.post("/youtube")
+async def index_youtube_video(payload: YouTubeIndexRequest):
+    """Fetches transcript for a YouTube video URL and indexes it into ChromaDB."""
+    try:
+        result = process_and_index_youtube(payload.url)
+        return {
+            "success": True,
+            "video": result,
+            "stats": vector_store_manager.get_stats()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/{filename}")

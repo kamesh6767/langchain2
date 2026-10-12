@@ -113,4 +113,5 @@ def get_public_settings() -> Dict[str, Any]:
         "chunk_size": int(stored.get("CHUNK_SIZE", 1000)),
         "chunk_overlap": int(stored.get("CHUNK_OVERLAP", 200)),
         "temperature": float(stored.get("TEMPERATURE", 0.7)),
+        "strict_guardrails": bool(stored.get("STRICT_GUARDRAILS", True)),
     }

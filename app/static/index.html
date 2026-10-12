@@ -64,6 +64,20 @@
         <div class="upload-subtext">PDF, DOCX, TXT, MD, CSV</div>
       </div>
 
+      <!-- YouTube Video Ingestion Card -->
+      <div class="youtube-card" id="youtube-input-card">
+        <div class="youtube-card-header">
+          <svg class="youtube-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+          <span style="font-size: 0.82rem; font-weight: 600;">Index YouTube Video</span>
+        </div>
+        <div class="youtube-input-group">
+          <input type="text" id="youtube-url-input" class="youtube-input" placeholder="Paste YouTube link...">
+          <button id="add-youtube-btn" class="youtube-btn" title="Fetch & Index Transcript">Add</button>
+        </div>
+      </div>
+
       <!-- Indexed Documents List -->
       <div id="doc-list" class="doc-list-container">
         <div class="doc-list-empty" id="doc-empty-state">
@@ -244,6 +258,19 @@
             <label class="form-label">Chunk Overlap</label>
             <input type="number" id="input-chunk-overlap" class="form-input" value="200" min="0" max="1000">
           </div>
+        <!-- AI Guardrails Section -->
+        <h4 style="font-size: 0.95rem; color: #a5b4fc; margin-top: 10px; margin-bottom: -8px;">3. AI Safety Guardrails</h4>
+        <div class="rag-toggle-wrapper" style="margin-top: 4px; padding: 12px 14px;">
+          <div>
+            <div style="font-size: 0.86rem; font-weight: 600; color: var(--text-main);">Strict Domain Guardrail</div>
+            <div style="font-size: 0.74rem; color: var(--text-subtle); margin-top: 2px;">
+              Strictly refuses any question unrelated to the provided YouTube video or documents.
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="strict-guardrails-toggle" checked>
+            <span class="slider"></span>
+          </label>
         </div>
 
       </div>

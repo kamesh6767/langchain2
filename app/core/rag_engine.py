@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from pathlib import Path
 from typing import List, AsyncGenerator, Dict, Any, Optional
@@ -10,6 +11,118 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from app.config import get_setting
 from app.core.model_factory import get_llm
 from app.core.vector_store import vector_store_manager
+
+# Guardrail refusal message standard
+GUARDRAIL_REFUSAL_MSG = (
+    "🛡️ **Guardrail Notice:** I can only answer questions related to the provided YouTube video "
+    "and uploaded documents. This question is outside the scope of the provided material."
+)
+
+
+def extract_youtube_video_id(url: str) -> Optional[str]:
+    """Extracts the 11-character YouTube video ID from various URL formats."""
+    url = url.strip()
+    patterns = [
+        r"(?:v=|\/embed\/|\/v\/|youtu\.be\/|\/watch\?v=|\/shorts\/)([0-9A-Za-z_-]{11})",
+        r"^([0-9A-Za-z_-]{11})$"
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
+
+def format_timestamp(seconds: float) -> str:
+    """Formats float seconds into [MM:SS] or [HH:MM:SS]."""
+    total_sec = int(seconds)
+    hours = total_sec // 3600
+    minutes = (total_sec % 3600) // 60
+    secs = total_sec % 60
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
+
+
+def process_and_index_youtube(url: str) -> Dict[str, Any]:
+    """
+    Fetches transcript from a YouTube video URL using youtube_transcript_api,
+    formats timestamped text segments, chunks the content, and indexes into ChromaDB.
+    """
+    video_id = extract_youtube_video_id(url)
+    if not video_id:
+        raise ValueError("Invalid YouTube URL. Please provide a valid watch link or video ID.")
+
+    from youtube_transcript_api import YouTubeTranscriptApi
+    
+    try:
+        transcript_data = YouTubeTranscriptApi.get_transcript(video_id)
+    except Exception as e:
+        raise RuntimeError(f"Could not retrieve transcript for YouTube video ({video_id}): {str(e)}")
+
+    if not transcript_data:
+        raise ValueError("The YouTube video transcript is empty or unavailable.")
+
+    uploaded_at = time.strftime("%Y-%m-%d %H:%M:%S")
+    filename = f"YouTube: {video_id}"
+    canonical_url = f"https://www.youtube.com/watch?v={video_id}"
+
+    # Group transcript into timestamped paragraphs
+    formatted_parts = []
+    current_segment = []
+    current_start = 0.0
+
+    for idx, item in enumerate(transcript_data):
+        text = item.get("text", "").strip()
+        start = item.get("start", 0.0)
+        if not current_segment:
+            current_start = start
+        current_segment.append(text)
+
+        # Break every ~4 items or ~200 characters for localized timestamp tags
+        if len(current_segment) >= 5 or len(" ".join(current_segment)) > 250:
+            ts_str = format_timestamp(current_start)
+            formatted_parts.append(f"[{ts_str}] " + " ".join(current_segment))
+            current_segment = []
+
+    if current_segment:
+        ts_str = format_timestamp(current_start)
+        formatted_parts.append(f"[{ts_str}] " + " ".join(current_segment))
+
+    full_transcript_text = "\n\n".join(formatted_parts)
+
+    raw_doc = Document(
+        page_content=full_transcript_text,
+        metadata={
+            "source": canonical_url,
+            "filename": filename,
+            "file_type": "youtube",
+            "video_id": video_id,
+            "uploaded_at": uploaded_at
+        }
+    )
+
+    chunk_size = int(get_setting("CHUNK_SIZE", 1000))
+    chunk_overlap = int(get_setting("CHUNK_OVERLAP", 200))
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        separators=["\n\n", "\n", ". ", " ", ""]
+    )
+
+    chunks = splitter.split_documents([raw_doc])
+    for idx, chunk in enumerate(chunks):
+        chunk.metadata["chunk_index"] = idx
+
+    chunks_count = vector_store_manager.add_documents(chunks)
+    return {
+        "video_id": video_id,
+        "filename": filename,
+        "url": canonical_url,
+        "chunks": chunks_count,
+        "total_segments": len(transcript_data)
+    }
 
 
 def load_file_content(file_path: Path) -> List[Document]:
@@ -55,7 +168,6 @@ def load_file_content(file_path: Path) -> List[Document]:
                 ))
 
     else:
-        # Fallback raw text read
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
             if content.strip():
@@ -89,28 +201,61 @@ def process_and_index_document(file_path: Path) -> int:
     return vector_store_manager.add_documents(chunks)
 
 
+def is_simple_greeting(text: str) -> bool:
+    """Checks if input is a polite conversational greeting."""
+    clean = re.sub(r"[^\w\s]", "", text.strip().lower())
+    greetings = {"hi", "hello", "hey", "good morning", "good evening", "good afternoon", "greetings", "help"}
+    return clean in greetings
+
+
 async def stream_rag_chat(
     message: str,
     history: Optional[List[Dict[str, str]]] = None,
     provider: Optional[str] = None,
     model: Optional[str] = None,
     temperature: Optional[float] = None,
-    use_rag: bool = True
+    use_rag: bool = True,
+    strict_guardrails: Optional[bool] = None
 ) -> AsyncGenerator[str, None]:
     """
-    Executes a RAG query and streams the response via Server-Sent Events (SSE).
-    Yields format:
-      data: {"type": "sources", "sources": [...]} \n\n
-      data: {"type": "token", "content": "..."} \n\n
-      data: {"type": "done"} \n\n
+    Executes a guarded RAG query and streams the response via Server-Sent Events (SSE).
+    Strictly prevents off-topic answering when guardrails are active.
     """
     history = history or []
     sources: List[Dict[str, Any]] = []
+
+    # Check guardrail setting
+    if strict_guardrails is None:
+        strict_guardrails = bool(get_setting("STRICT_GUARDRAILS", True))
 
     try:
         # Check if vector store has any indexed documents
         stats = vector_store_manager.get_stats()
         has_docs = stats["total_chunks"] > 0 and use_rag
+
+        # Fast Greeting Handling
+        if is_simple_greeting(message):
+            yield f"data: {json.dumps({'type': 'sources', 'sources': []})}\n\n"
+            if has_docs:
+                greeting_reply = (
+                    "Hello! I am your AI assistant strictly grounded in the provided YouTube video "
+                    "and document context. What would you like to know about the material?"
+                )
+            else:
+                greeting_reply = (
+                    "Hello! Please add a YouTube video URL or upload documents in the sidebar "
+                    "so I can answer your questions based on that content."
+                )
+            yield f"data: {json.dumps({'type': 'token', 'content': greeting_reply})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        # If guardrails are active but no material is loaded
+        if strict_guardrails and not has_docs:
+            yield f"data: {json.dumps({'type': 'sources', 'sources': []})}\n\n"
+            yield f"data: {json.dumps({'type': 'token', 'content': '🛡️ **Guardrail Notice:** No YouTube video or documents have been indexed yet. Please provide a YouTube link or upload a file first.'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
 
         context_str = ""
         if has_docs:
@@ -122,6 +267,7 @@ async def stream_rag_chat(
                     filename = meta.get("filename", "Document")
                     page = meta.get("page", None)
                     chunk_idx = meta.get("chunk_index", 0)
+                    file_type = meta.get("file_type", "")
                     snippet = doc.page_content.strip()[:240] + ("..." if len(doc.page_content) > 240 else "")
                     
                     sources.append({
@@ -129,37 +275,50 @@ async def stream_rag_chat(
                         "filename": filename,
                         "page": page,
                         "chunk": chunk_idx,
+                        "file_type": file_type,
                         "snippet": snippet
                     })
                     
                     loc = f"(Page {page})" if page else f"(Chunk {chunk_idx})"
-                    context_parts.append(f"--- Document: {filename} {loc} ---\n{doc.page_content}\n")
+                    context_parts.append(f"--- Source: {filename} {loc} ---\n{doc.page_content}\n")
 
                 context_str = "\n".join(context_parts)
 
         # Send retrieved sources to client first
         yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
 
-        # Construct System Prompt & Messages
-        if has_docs and context_str:
+        # Construct Guarded System Prompt
+        if strict_guardrails:
             system_prompt = (
-                "You are an intelligent, accurate AI assistant. You have access to the user's uploaded documents.\n"
-                "Use the following retrieved context to answer the user's questions clearly, concisely, and factually.\n"
-                "If the context does not contain enough information to answer, state honestly that the documents don't specify, "
-                "then answer to the best of your knowledge if appropriate.\n"
-                "Always format your answers in clean Markdown.\n\n"
-                f"### Retrieved Context:\n{context_str}"
+                "You are a strictly guarded AI assistant dedicated ONLY to the provided context from the user's "
+                "YouTube video transcripts and uploaded documents.\n\n"
+                "### CRITICAL GUARDRAIL DIRECTIVES (MANDATORY):\n"
+                "1. STRICT REFUSAL POLICY: If the user's question is NOT directly answered by or clearly relevant to "
+                "the provided context, you MUST STRICTLY REFUSE to answer.\n"
+                "2. EXACT REFUSAL TEXT: When refusing, respond EXACTLY with:\n"
+                f"'{GUARDRAIL_REFUSAL_MSG}'\n"
+                "3. NO OUTSIDE KNOWLEDGE: Even if you know the answer to general questions (e.g. general trivia, coding tasks, "
+                "world history, unrelated topics), NEVER answer them. Refuse immediately.\n"
+                "4. FACTUALITY: Only state information that is directly supported by the context below. Do not guess or extrapolate.\n"
+                "5. FORMATTING: Format valid answers in clean, professional Markdown.\n\n"
+                f"### Provided Context:\n{context_str}"
             )
         else:
-            system_prompt = (
-                "You are a helpful, brilliant AI assistant. You answer user questions clearly, concisely, "
-                "and formatted in clean Markdown with code blocks when applicable."
-            )
+            if has_docs and context_str:
+                system_prompt = (
+                    "You are a helpful AI assistant. Answer the user's question using the provided context when applicable. "
+                    "If the answer is not in the context, you may answer using general knowledge while indicating so.\n\n"
+                    f"### Context:\n{context_str}"
+                )
+            else:
+                system_prompt = (
+                    "You are a helpful AI assistant. Answer user questions clearly and concisely in clean Markdown."
+                )
 
         messages = [SystemMessage(content=system_prompt)]
 
-        # Add recent conversation history (last 8 turns)
-        for h in history[-8:]:
+        # Add recent conversation history (last 6 turns)
+        for h in history[-6:]:
             role = h.get("role")
             content = h.get("content", "")
             if role == "user":

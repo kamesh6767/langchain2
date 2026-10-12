@@ -60,6 +60,8 @@ GROQ_API_KEY=gsk_...
 
 ## 🚀 Key Features
 
+- **YouTube Video Transcripts:** Paste any YouTube link (watch link, shortened `youtu.be`, or embed) to fetch and embed timestamped transcripts into vector memory.
+- **🛡️ Strict AI Guardrails:** Built-in domain guardrail policy that strictly refuses any query outside the scope of the provided YouTube video or uploaded documents, preventing hallucinations and off-topic conversations.
 - **Document Q&A (RAG):** Drag and drop your **PDFs**, **DOCX**, **TXT**, **Markdown**, or **CSV** files into the sidebar.
 - **Persistent Vector Storage:** Powered by **ChromaDB**. Document embeddings are saved in `./data/chroma/` and preserved across container restarts.
 - **Multi-Provider LLM & Embeddings:**
@@ -67,6 +69,45 @@ GROQ_API_KEY=gsk_...
   - **Embeddings:** OpenAI (`text-embedding-3-small`), Google Gemini (`embedding-001`), or **HuggingFace (`all-MiniLM-L6-v2`)** which runs completely on local CPU with zero API costs!
 - **Real-Time Streaming with Source Citations:** Streams token-by-token responses and displays expandable citation cards showing the source file and chunk preview.
 - **Glassmorphic Dark UI:** Modern, responsive interface with fast zero-build static asset delivery.
+
+---
+
+## 🧪 Testing Locally Before Pushing to GitHub
+
+Before pushing your changes to GitHub, test your setup locally using the following steps:
+
+### 1. Run the Automated Test Suite
+Run the included test runner to verify API endpoints, YouTube link parsing, and Guardrail behavior:
+```bash
+python test_app.py
+```
+*(All tests should complete with `OK`.)*
+
+### 2. Test the Live Web UI
+Run the local development server:
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+Open **[http://localhost:8000](http://localhost:8000)** in your browser:
+1. Paste a YouTube link into the sidebar (e.g., `https://www.youtube.com/watch?v=...`) and click **Add**.
+2. Configure your API key in **Settings (Gear icon)**.
+3. Ask a question about the video (e.g., *"Summarize the video"*).
+4. Ask an unrelated question (e.g., *"What is the capital of Australia?"*) to verify the **Guardrails Notice** strictly refuses off-topic questions.
+
+### 3. Test Docker Build & Containerization
+Verify that the container builds and runs properly in Docker:
+```bash
+docker compose up -d --build
+```
+Check status:
+```bash
+docker compose ps
+docker compose logs -f
+```
+Once verified, stop the container:
+```bash
+docker compose down
+```
 
 ---
 

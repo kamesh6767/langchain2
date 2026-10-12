@@ -113,6 +113,11 @@ const DocuMindSettings = {
     if (embModel) embModel.value = cfg.default_embedding_model || 'text-embedding-3-small';
     if (chunkSize) chunkSize.value = cfg.chunk_size || 1000;
     if (chunkOverlap) chunkOverlap.value = cfg.chunk_overlap || 200;
+
+    const guardrailsToggle = document.getElementById('strict-guardrails-toggle');
+    if (guardrailsToggle) {
+      guardrailsToggle.checked = cfg.strict_guardrails !== false;
+    }
   },
 
   async testKey(provider) {
@@ -157,6 +162,7 @@ const DocuMindSettings = {
     payload.DEFAULT_EMBEDDING_MODEL = document.getElementById('input-embedding-model')?.value?.trim();
     payload.CHUNK_SIZE = parseInt(document.getElementById('input-chunk-size')?.value) || 1000;
     payload.CHUNK_OVERLAP = parseInt(document.getElementById('input-chunk-overlap')?.value) || 200;
+    payload.STRICT_GUARDRAILS = document.getElementById('strict-guardrails-toggle')?.checked ?? true;
 
     try {
       const res = await fetch('/api/config', {

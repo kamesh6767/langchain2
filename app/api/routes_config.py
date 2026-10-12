@@ -20,6 +20,7 @@ class SettingsUpdateRequest(BaseModel):
     CHUNK_SIZE: Optional[int] = None
     CHUNK_OVERLAP: Optional[int] = None
     TEMPERATURE: Optional[float] = None
+    STRICT_GUARDRAILS: Optional[bool] = None
 
 
 class TestConnectionRequest(BaseModel):

@@ -107,6 +107,7 @@ const DocuMindApp = {
     this.setGenerating(true);
 
     const useRag = document.getElementById('rag-toggle')?.checked ?? true;
+    const strictGuardrails = document.getElementById('strict-guardrails-toggle')?.checked ?? true;
 
     try {
       const response = await fetch('/api/chat/stream', {
@@ -115,7 +116,8 @@ const DocuMindApp = {
         body: JSON.stringify({
           message,
           history: this.conversationHistory,
-          use_rag: useRag
+          use_rag: useRag,
+          strict_guardrails: strictGuardrails
         })
       });
 
