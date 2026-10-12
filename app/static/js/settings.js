@@ -33,7 +33,7 @@ const DocuMindSettings = {
       if (val === 'openai') modelInput.value = 'gpt-4o-mini';
       else if (val === 'gemini') modelInput.value = 'gemini-1.5-flash';
       else if (val === 'anthropic') modelInput.value = 'claude-3-5-sonnet-20240620';
-      else if (val === 'groq') modelInput.value = 'llama-3.1-8b-instant';
+      else if (val === 'groq') modelInput.value = 'openai/gpt-oss-120b';
     });
 
     const embedSelect = document.getElementById('select-embedding-provider');

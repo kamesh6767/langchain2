@@ -89,7 +89,8 @@ def get_llm(
             model=model_name,
             api_key=api_key,
             temperature=temp,
-            streaming=streaming
+            streaming=streaming,
+            default_headers={"Accept-Encoding": "gzip, deflate"}
         )
 
     elif provider == "gemini":
@@ -123,13 +124,47 @@ def get_llm(
         if not api_key:
             raise ValueError("Groq API Key is missing. Please configure it in Settings or .env.")
         from langchain_openai import ChatOpenAI
-        model_name = model or get_setting("DEFAULT_LLM_MODEL", "llama-3.1-8b-instant")
+        
+        configured_model = model or get_setting("DEFAULT_LLM_MODEL", "openai/gpt-oss-120b")
+        preferred_models = [
+            configured_model,
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "llama-3.3-70b-versatile",
+            "qwen/qwen3.8-27b",
+            "llama-3.1-8b-instant"
+        ]
+
+        active_model = configured_model
+        try:
+            import httpx
+            r = httpx.get(
+                "https://api.groq.com/openai/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=3.0
+            )
+            if r.status_code == 200:
+                available_ids = {
+                    m["id"] for m in r.json().get("data", [])
+                    if not m["id"].startswith("whisper") and "guard" not in m["id"]
+                }
+                if configured_model not in available_ids:
+                    for cand in preferred_models:
+                        if cand in available_ids:
+                            active_model = cand
+                            break
+                    if active_model not in available_ids and available_ids:
+                        active_model = next(iter(available_ids))
+        except Exception:
+            pass
+
         return ChatOpenAI(
             base_url="https://api.groq.com/openai/v1",
             api_key=api_key,
-            model=model_name,
+            model=active_model,
             temperature=temp,
-            streaming=streaming
+            streaming=streaming,
+            default_headers={"Accept-Encoding": "gzip, deflate"}
         )
 
     else:
@@ -142,7 +177,12 @@ async def test_connection(provider: str, api_key: str) -> Tuple[bool, str]:
     try:
         if provider == "openai":
             from langchain_openai import ChatOpenAI
-            llm = ChatOpenAI(api_key=api_key, model="gpt-4o-mini", max_tokens=5)
+            llm = ChatOpenAI(
+                api_key=api_key,
+                model="gpt-4o-mini",
+                max_tokens=5,
+                default_headers={"Accept-Encoding": "gzip, deflate"}
+            )
             await llm.ainvoke("Ping")
             return True, "OpenAI API Key verified successfully!"
 
@@ -159,10 +199,17 @@ async def test_connection(provider: str, api_key: str) -> Tuple[bool, str]:
             return True, "Anthropic API Key verified successfully!"
 
         elif provider == "groq":
-            from langchain_openai import ChatOpenAI
-            llm = ChatOpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key, model="llama-3.1-8b-instant", max_tokens=5)
-            await llm.ainvoke("Ping")
-            return True, "Groq API Key verified successfully!"
+            import httpx
+            # Validate via models endpoint first
+            r = httpx.get(
+                "https://api.groq.com/openai/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=5.0
+            )
+            if r.status_code == 200:
+                return True, "Groq API Key verified successfully!"
+            else:
+                return False, f"Groq verification failed: {r.text}"
 
         else:
             return False, f"Unknown provider: {provider}"
