@@ -38,15 +38,48 @@
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+  max-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 body {
   font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-main);
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   line-height: 1.5;
+}
+
+/* Custom Visible Scrollbars across the entire app */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.35);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.65);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.35) rgba(15, 23, 42, 0.4);
 }
 
 /* Background Atmospheric Glow */
@@ -68,6 +101,9 @@ header.app-header {
   position: relative;
   z-index: 10;
   height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+  flex-shrink: 0;
   background: var(--bg-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -190,9 +226,11 @@ header.app-header {
 .app-container {
   position: relative;
   z-index: 1;
-  flex: 1;
+  flex: 1 1 0%;
   display: flex;
   height: calc(100vh - 64px);
+  max-height: calc(100vh - 64px);
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -200,10 +238,16 @@ header.app-header {
 aside.sidebar {
   width: 320px;
   min-width: 300px;
+  max-width: 320px;
+  height: 100%;
+  max-height: 100%;
+  flex-shrink: 0;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   transition: var(--transition-smooth);
 }
 
@@ -341,8 +385,10 @@ aside.sidebar {
 
 /* Document List */
 .doc-list-container {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 16px;
 }
 
@@ -447,6 +493,17 @@ aside.sidebar {
   font-weight: 500;
 }
 
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-hint {
+  font-size: 0.70rem;
+  color: var(--text-subtle);
+}
+
 /* Switch */
 .switch {
   position: relative;
@@ -493,29 +550,36 @@ input:checked + .slider:before {
 
 /* Main Chat Section */
 main.chat-main {
-  flex: 1;
+  flex: 1 1 0%;
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
   position: relative;
   height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chat-history {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 24px 32px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  scroll-behavior: smooth;
 }
 
 /* Welcome Hero */
 .welcome-hero {
   max-width: 680px;
-  margin: auto;
+  margin: 16px auto;
   text-align: center;
-  padding: 40px 20px;
+  padding: 20px 20px;
 }
 
 .hero-badge {
@@ -717,6 +781,7 @@ main.chat-main {
 
 /* Chat Input Bar */
 .chat-input-wrapper {
+  flex-shrink: 0;
   padding: 16px 32px 24px;
   position: relative;
   z-index: 5;

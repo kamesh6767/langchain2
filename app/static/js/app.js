@@ -107,7 +107,8 @@ const DocuMindApp = {
     this.setGenerating(true);
 
     const useRag = document.getElementById('rag-toggle')?.checked ?? true;
-    const strictGuardrails = document.getElementById('strict-guardrails-toggle')?.checked ?? true;
+    const strictGuardrails = document.getElementById('strict-guardrails-main-toggle')?.checked ?? 
+                             document.getElementById('strict-guardrails-toggle')?.checked ?? false;
 
     try {
       const response = await fetch('/api/chat/stream', {
@@ -147,7 +148,7 @@ const DocuMindApp = {
             const data = JSON.parse(dataStr);
             if (data.type === 'token') {
               accumulatedText += data.content;
-              bubbleEl.innerHTML = marked.parse(accumulatedText);
+              bubbleEl.innerHTML = this.renderMarkdown(accumulatedText);
               this.scrollToBottom();
             } else if (data.type === 'sources') {
               if (data.sources && data.sources.length > 0) {
@@ -155,7 +156,7 @@ const DocuMindApp = {
               }
             } else if (data.type === 'error') {
               accumulatedText += `\n\n> ⚠️ **Error:** ${data.error}`;
-              bubbleEl.innerHTML = marked.parse(accumulatedText);
+              bubbleEl.innerHTML = this.renderMarkdown(accumulatedText);
             }
           } catch (err) {
             console.error('Error parsing SSE event:', err);
@@ -235,7 +236,27 @@ const DocuMindApp = {
     const chatHistory = document.getElementById('chat-history');
     if (chatHistory) {
       chatHistory.scrollTop = chatHistory.scrollHeight;
+      requestAnimationFrame(() => {
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+      });
     }
+  },
+
+  renderMarkdown(text) {
+    if (window.marked && typeof window.marked.parse === 'function') {
+      try {
+        return window.marked.parse(text);
+      } catch (e) {
+        console.warn('Marked parse error, using fallback:', e);
+      }
+    }
+    // Safe resilient fallback
+    return this.escapeHtml(text)
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\n\n/g, '<p></p>')
+      .replace(/\n/g, '<br>');
   },
 
   escapeHtml(str) {

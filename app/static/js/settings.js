@@ -44,6 +44,23 @@ const DocuMindSettings = {
       else if (val === 'gemini') modelInput.value = 'models/embedding-001';
       else if (val === 'huggingface') modelInput.value = 'all-MiniLM-L6-v2';
     });
+
+    const mainGuardrailsToggle = document.getElementById('strict-guardrails-main-toggle');
+    mainGuardrailsToggle?.addEventListener('change', async (e) => {
+      const isChecked = e.target.checked;
+      const modalToggle = document.getElementById('strict-guardrails-toggle');
+      if (modalToggle) modalToggle.checked = isChecked;
+      try {
+        await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ STRICT_GUARDRAILS: isChecked })
+        });
+        this.showToast(isChecked ? '🛡️ Guardrails ON: Answers restricted to video & documents' : '🌐 Guardrails OFF: AI can answer general questions', 'info');
+      } catch (err) {
+        console.error('Error updating guardrails:', err);
+      }
+    });
   },
 
   open() {
@@ -115,9 +132,10 @@ const DocuMindSettings = {
     if (chunkOverlap) chunkOverlap.value = cfg.chunk_overlap || 200;
 
     const guardrailsToggle = document.getElementById('strict-guardrails-toggle');
-    if (guardrailsToggle) {
-      guardrailsToggle.checked = cfg.strict_guardrails !== false;
-    }
+    const mainGuardrailsToggle = document.getElementById('strict-guardrails-main-toggle');
+    const isStrict = cfg.strict_guardrails === true;
+    if (guardrailsToggle) guardrailsToggle.checked = isStrict;
+    if (mainGuardrailsToggle) mainGuardrailsToggle.checked = isStrict;
   },
 
   async testKey(provider) {
@@ -161,8 +179,10 @@ const DocuMindSettings = {
     payload.DEFAULT_EMBEDDING_PROVIDER = document.getElementById('select-embedding-provider')?.value;
     payload.DEFAULT_EMBEDDING_MODEL = document.getElementById('input-embedding-model')?.value?.trim();
     payload.CHUNK_SIZE = parseInt(document.getElementById('input-chunk-size')?.value) || 1000;
-    payload.CHUNK_OVERLAP = parseInt(document.getElementById('input-chunk-overlap')?.value) || 200;
-    payload.STRICT_GUARDRAILS = document.getElementById('strict-guardrails-toggle')?.checked ?? true;
+    const isStrict = document.getElementById('strict-guardrails-toggle')?.checked ?? false;
+    payload.STRICT_GUARDRAILS = isStrict;
+    const mainGuardrailsToggle = document.getElementById('strict-guardrails-main-toggle');
+    if (mainGuardrailsToggle) mainGuardrailsToggle.checked = isStrict;
 
     try {
       const res = await fetch('/api/config', {

@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
   <link rel="stylesheet" href="/static/css/style.css">
   <!-- Markdown parser -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -90,7 +91,17 @@
         <div class="rag-toggle-wrapper">
           <span class="toggle-label">Use Document Context</span>
           <label class="switch">
-            <input type="checkbox" id="rag-toggle" checked>
+            <input type="checkbox" id="rag-toggle" checked title="Toggle RAG Document Context">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="rag-toggle-wrapper">
+          <div class="toggle-info">
+            <span class="toggle-label">Strict Guardrails</span>
+            <span class="toggle-hint">Ground strictly in docs/video</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="strict-guardrails-main-toggle" title="Toggle Strict AI Guardrails">
             <span class="slider"></span>
           </label>
         </div>

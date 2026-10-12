@@ -326,16 +326,16 @@ async def stream_rag_chat(
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
             return
 
-        # If guardrails are active but no material is loaded
-        if strict_guardrails and not has_docs:
+        # If strict guardrails are active with RAG enabled, but no material is loaded
+        if strict_guardrails and use_rag and stats["total_chunks"] == 0:
             yield f"data: {json.dumps({'type': 'sources', 'sources': []})}\n\n"
-            yield f"data: {json.dumps({'type': 'token', 'content': '🛡️ **Guardrail Notice:** No YouTube video or documents have been indexed yet. Please provide a YouTube link or upload a file first.'})}\n\n"
+            yield f"data: {json.dumps({'type': 'token', 'content': '🛡️ **Guardrail Notice:** No YouTube video or documents have been indexed yet. Please provide a YouTube link or upload a file in the sidebar first.'})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
             return
 
         context_str = ""
         if has_docs:
-            retrieved_docs = vector_store_manager.search(message, k=4)
+            retrieved_docs = vector_store_manager.search(message, k=8)
             if retrieved_docs:
                 context_parts = []
                 for i, doc in enumerate(retrieved_docs):
@@ -364,31 +364,28 @@ async def stream_rag_chat(
         yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
 
         # Construct Guarded System Prompt
-        if strict_guardrails:
+        if strict_guardrails and use_rag:
             system_prompt = (
-                "You are a strictly guarded AI assistant dedicated ONLY to the provided context from the user's "
-                "YouTube video transcripts and uploaded documents.\n\n"
-                "### CRITICAL GUARDRAIL DIRECTIVES (MANDATORY):\n"
-                "1. STRICT REFUSAL POLICY: If the user's question is NOT directly answered by or clearly relevant to "
-                "the provided context, you MUST STRICTLY REFUSE to answer.\n"
-                "2. EXACT REFUSAL TEXT: When refusing, respond EXACTLY with:\n"
+                "You are an AI assistant grounded in the provided context from YouTube video transcripts and uploaded documents.\n\n"
+                "### CORE OPERATIONAL DIRECTIVES:\n"
+                "1. GROUNDING: Answer the user's inquiry thoroughly and accurately using the provided context below.\n"
+                "2. TIMESTAMPS & CITATIONS: When citing information from YouTube transcripts or documents, reference timestamps [MM:SS] or chunk sources where available.\n"
+                "3. HELPFUL SYNTHESIS: If the user asks for a summary, explanation, key takeaways, or concepts related to the material, synthesize a comprehensive and informative answer.\n"
+                "4. GUARDRAIL SCOPE POLICY: If and only if the user's question is completely unrelated to the topic of the provided documents/video (e.g. unrelated general trivia, recipes, random off-topic queries), politely state:\n"
                 f"'{GUARDRAIL_REFUSAL_MSG}'\n"
-                "3. NO OUTSIDE KNOWLEDGE: Even if you know the answer to general questions (e.g. general trivia, coding tasks, "
-                "world history, unrelated topics), NEVER answer them. Refuse immediately.\n"
-                "4. FACTUALITY: Only state information that is directly supported by the context below. Do not guess or extrapolate.\n"
-                "5. FORMATTING: Format valid answers in clean, professional Markdown.\n\n"
+                "5. FORMATTING: Format all responses in clean, well-structured Markdown with clear headers and bullet points.\n\n"
                 f"### Provided Context:\n{context_str}"
             )
         else:
             if has_docs and context_str:
                 system_prompt = (
-                    "You are a helpful AI assistant. Answer the user's question using the provided context when applicable. "
-                    "If the answer is not in the context, you may answer using general knowledge while indicating so.\n\n"
+                    "You are a helpful AI assistant. Answer the user's question using the provided context when applicable, "
+                    "supplemented with your broad knowledge base when helpful. Format your response in clean Markdown.\n\n"
                     f"### Context:\n{context_str}"
                 )
             else:
                 system_prompt = (
-                    "You are a helpful AI assistant. Answer user questions clearly and concisely in clean Markdown."
+                    "You are a helpful, versatile AI assistant. Answer user questions clearly, thoroughly, and accurately in clean Markdown."
                 )
 
         messages = [SystemMessage(content=system_prompt)]

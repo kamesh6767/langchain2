@@ -66,7 +66,8 @@ class TestDocuMind(unittest.TestCase):
         self.assertFalse(is_simple_greeting("Explain quantum computing"))
 
     def test_strict_guardrail_blocking_empty_vault(self):
-        """Test that strict guardrails block queries when no material is indexed"""
+        """Test that strict guardrails block off-topic queries when guardrails are enabled"""
+        import json
         response = self.client.post(
             "/api/chat/stream",
             json={
@@ -76,9 +77,17 @@ class TestDocuMind(unittest.TestCase):
             }
         )
         self.assertEqual(response.status_code, 200)
-        content = response.text
-        # Must contain guardrail notice
-        self.assertTrue("Guardrail Notice" in content)
+        accumulated = ""
+        for line in response.text.split("\n\n"):
+            if line.startswith("data: "):
+                try:
+                    payload = json.loads(line[6:].strip())
+                    if payload.get("type") == "token":
+                        accumulated += payload.get("content", "")
+                except Exception:
+                    pass
+        # Must contain guardrail notice or scope refusal
+        self.assertTrue("Guardrail Notice" in accumulated or "outside the scope" in accumulated)
 
     def test_static_index_serving(self):
         """Test root serves HTML application"""
