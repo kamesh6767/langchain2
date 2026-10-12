@@ -22,15 +22,97 @@ GUARDRAIL_REFUSAL_MSG = (
 def extract_youtube_video_id(url: str) -> Optional[str]:
     """Extracts the 11-character YouTube video ID from various URL formats."""
     url = url.strip()
+    if not url:
+        return None
+
+    if re.fullmatch(r"[0-9A-Za-z_-]{11}", url):
+        return url
+
+    try:
+        from urllib.parse import urlparse, parse_qs
+        parsed = urlparse(url)
+        if "youtube" in parsed.netloc or "youtu.be" in parsed.netloc:
+            qs = parse_qs(parsed.query)
+            if "v" in qs and len(qs["v"]) > 0:
+                return qs["v"][0]
+            if parsed.netloc == "youtu.be" and parsed.path:
+                vid = parsed.path.strip("/").split("/")[0]
+                if len(vid) == 11:
+                    return vid
+            if "/shorts/" in parsed.path or "/embed/" in parsed.path:
+                parts = parsed.path.strip("/").split("/")
+                for p in parts:
+                    if len(p) == 11 and re.match(r"^[0-9A-Za-z_-]{11}$", p):
+                        return p
+    except Exception:
+        pass
+
     patterns = [
         r"(?:v=|\/embed\/|\/v\/|youtu\.be\/|\/watch\?v=|\/shorts\/)([0-9A-Za-z_-]{11})",
-        r"^([0-9A-Za-z_-]{11})$"
     ]
     for pattern in patterns:
         match = re.search(pattern, url)
         if match:
             return match.group(1)
     return None
+
+
+def fetch_youtube_raw_transcript(video_id: str) -> List[Dict[str, Any]]:
+    """
+    Universally fetches transcript items supporting youtube_transcript_api v1.0+ and legacy versions.
+    """
+    from youtube_transcript_api import YouTubeTranscriptApi
+
+    raw_items = []
+    error_reasons = []
+
+    # 1. Try modern API: instance with .fetch() or .list()
+    try:
+        api = YouTubeTranscriptApi() if isinstance(YouTubeTranscriptApi, type) else YouTubeTranscriptApi
+        if hasattr(api, "fetch"):
+            try:
+                raw_items = api.fetch(video_id)
+            except Exception as e:
+                error_reasons.append(str(e))
+                if hasattr(api, "list"):
+                    try:
+                        transcript_list = api.list(video_id)
+                        try:
+                            t_obj = transcript_list.find_transcript(["en", "en-US", "en-GB"])
+                        except Exception:
+                            t_obj = next(iter(transcript_list))
+                        raw_items = t_obj.fetch() if hasattr(t_obj, "fetch") else t_obj
+                    except Exception as e2:
+                        error_reasons.append(str(e2))
+    except Exception as e:
+        error_reasons.append(str(e))
+
+    # 2. Try legacy API: YouTubeTranscriptApi.get_transcript
+    if not raw_items and hasattr(YouTubeTranscriptApi, "get_transcript"):
+        try:
+            raw_items = YouTubeTranscriptApi.get_transcript(video_id)
+        except Exception as e:
+            error_reasons.append(str(e))
+
+    if not raw_items:
+        reason_str = " | ".join(error_reasons) if error_reasons else "No captions found"
+        raise RuntimeError(
+            f"Could not retrieve transcript for video ({video_id}). "
+            f"Please verify that captions/subtitles are enabled on this video. Details: {reason_str}"
+        )
+
+    normalized = []
+    for item in raw_items:
+        if isinstance(item, dict):
+            text = item.get("text", "")
+            start = float(item.get("start", 0.0))
+        else:
+            text = getattr(item, "text", "")
+            start = float(getattr(item, "start", 0.0))
+        if text and text.strip():
+            normalized.append({"text": text.strip(), "start": start})
+
+    return normalized
 
 
 def format_timestamp(seconds: float) -> str:
@@ -46,20 +128,14 @@ def format_timestamp(seconds: float) -> str:
 
 def process_and_index_youtube(url: str) -> Dict[str, Any]:
     """
-    Fetches transcript from a YouTube video URL using youtube_transcript_api,
+    Fetches transcript from a YouTube video URL using universal transcript fetcher,
     formats timestamped text segments, chunks the content, and indexes into ChromaDB.
     """
     video_id = extract_youtube_video_id(url)
     if not video_id:
         raise ValueError("Invalid YouTube URL. Please provide a valid watch link or video ID.")
 
-    from youtube_transcript_api import YouTubeTranscriptApi
-    
-    try:
-        transcript_data = YouTubeTranscriptApi.get_transcript(video_id)
-    except Exception as e:
-        raise RuntimeError(f"Could not retrieve transcript for YouTube video ({video_id}): {str(e)}")
-
+    transcript_data = fetch_youtube_raw_transcript(video_id)
     if not transcript_data:
         raise ValueError("The YouTube video transcript is empty or unavailable.")
 

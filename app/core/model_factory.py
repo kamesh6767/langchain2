@@ -9,21 +9,31 @@ def get_embeddings(provider: Optional[str] = None, model: Optional[str] = None):
     """
     provider = (provider or get_setting("DEFAULT_EMBEDDING_PROVIDER", "openai")).lower().strip()
     
+    # Check configured keys
+    openai_key = get_api_key("openai")
+    gemini_key = get_api_key("gemini")
+
     if provider == "openai":
-        api_key = get_api_key("openai")
-        if not api_key:
-            raise ValueError("OpenAI API Key is missing. Please configure it in Settings or .env.")
-        from langchain_openai import OpenAIEmbeddings
-        model_name = model or get_setting("DEFAULT_EMBEDDING_MODEL", "text-embedding-3-small")
-        return OpenAIEmbeddings(openai_api_key=api_key, model=model_name)
+        if openai_key:
+            from langchain_openai import OpenAIEmbeddings
+            model_name = model or get_setting("DEFAULT_EMBEDDING_MODEL", "text-embedding-3-small")
+            return OpenAIEmbeddings(openai_api_key=openai_key, model=model_name)
+        elif gemini_key:
+            from langchain_google_genai import GoogleGenerativeAIEmbeddings
+            return GoogleGenerativeAIEmbeddings(google_api_key=gemini_key, model="models/embedding-001")
+        else:
+            raise ValueError("No API Key configured! Please open Settings (⚙️ in top-right) and enter your OpenAI or Google Gemini API key.")
 
     elif provider == "gemini":
-        api_key = get_api_key("gemini")
-        if not api_key:
-            raise ValueError("Google Gemini API Key is missing. Please configure it in Settings or .env.")
-        from langchain_google_genai import GoogleGenerativeAIEmbeddings
-        model_name = model or get_setting("DEFAULT_EMBEDDING_MODEL", "models/embedding-001")
-        return GoogleGenerativeAIEmbeddings(google_api_key=api_key, model=model_name)
+        if gemini_key:
+            from langchain_google_genai import GoogleGenerativeAIEmbeddings
+            model_name = model or get_setting("DEFAULT_EMBEDDING_MODEL", "models/embedding-001")
+            return GoogleGenerativeAIEmbeddings(google_api_key=gemini_key, model=model_name)
+        elif openai_key:
+            from langchain_openai import OpenAIEmbeddings
+            return OpenAIEmbeddings(openai_api_key=openai_key, model="text-embedding-3-small")
+        else:
+            raise ValueError("Google Gemini API Key is missing. Please configure it in Settings (⚙️) or .env.")
 
     elif provider in ("huggingface", "local"):
         try:
@@ -31,7 +41,7 @@ def get_embeddings(provider: Optional[str] = None, model: Optional[str] = None):
             model_name = model or "sentence-transformers/all-MiniLM-L6-v2"
             return HuggingFaceEmbeddings(model_name=model_name)
         except Exception as e:
-            raise RuntimeError(f"Failed to load local HuggingFace embeddings: {e}")
+            raise RuntimeError(f"Local HuggingFace embeddings requires sentence-transformers: {e}")
 
     else:
         raise ValueError(f"Unsupported embedding provider: '{provider}'. Supported: openai, gemini, huggingface")
