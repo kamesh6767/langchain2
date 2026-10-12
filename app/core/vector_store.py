@@ -16,11 +16,22 @@ class VectorStoreManager:
     def get_vector_store(self, reset_cache: bool = False) -> Chroma:
         if self._vector_store is None or reset_cache:
             embeddings = get_embeddings()
-            self._vector_store = Chroma(
-                collection_name=COLLECTION_NAME,
-                embedding_function=embeddings,
-                persist_directory=str(CHROMA_DIR)
-            )
+            try:
+                self._vector_store = Chroma(
+                    collection_name=COLLECTION_NAME,
+                    embedding_function=embeddings,
+                    persist_directory=str(CHROMA_DIR)
+                )
+            except Exception as e:
+                if "dimension" in str(e).lower():
+                    self.clear_all()
+                    self._vector_store = Chroma(
+                        collection_name=COLLECTION_NAME,
+                        embedding_function=embeddings,
+                        persist_directory=str(CHROMA_DIR)
+                    )
+                else:
+                    raise e
         return self._vector_store
 
     def add_documents(self, documents: List[Document]) -> int:
