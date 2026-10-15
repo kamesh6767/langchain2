@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=4">
   <!-- Markdown parser -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -59,10 +59,10 @@
 
       <!-- Drag & Drop Zone -->
       <div id="dropzone" class="upload-card">
-        <input type="file" id="file-input" multiple accept=".pdf,.docx,.txt,.md,.csv,.json" style="display:none;">
+        <input type="file" id="file-input" multiple accept=".pdf,.docx,.pptx,.xlsx,.xls,.txt,.md,.csv,.json" style="display:none;">
         <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <div class="upload-text">Drop files or click to upload</div>
-        <div class="upload-subtext">PDF, DOCX, TXT, MD, CSV</div>
+        <div class="upload-subtext">PDF, DOCX, PPTX, XLSX, TXT, CSV</div>
       </div>
 
       <!-- YouTube Video Ingestion Card -->
@@ -101,7 +101,7 @@
             <span class="toggle-hint">Ground strictly in docs/video</span>
           </div>
           <label class="switch">
-            <input type="checkbox" id="strict-guardrails-main-toggle" title="Toggle Strict AI Guardrails">
+            <input type="checkbox" id="strict-guardrails-main-toggle" checked title="Toggle Strict AI Guardrails">
             <span class="slider"></span>
           </label>
         </div>
@@ -113,6 +113,56 @@
 
     <!-- Main Chat Workspace -->
     <main class="chat-main">
+
+      <!-- Workspace / Separate Window Tabs Bar -->
+      <div class="workspace-tabs-bar" id="workspace-tabs-bar">
+        <div class="tabs-scroll-area" id="tabs-scroll-area">
+          <!-- Dynamic Tabs for each video and document inserted by JS -->
+        </div>
+        <button id="add-vault-tab-btn" class="btn-tab-action" title="Open Global Multi-Document Vault" type="button">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Vault</span>
+        </button>
+      </div>
+
+      <!-- Active Window Header Banner -->
+      <div class="active-window-banner" id="active-window-banner">
+        <div class="window-banner-left">
+          <div class="window-banner-icon" id="banner-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div class="window-banner-info">
+            <div class="window-banner-title-row">
+              <span class="window-banner-title" id="banner-title">Knowledge Base</span>
+              <span class="window-badge-isolated" id="banner-isolation-badge">Isolated Context</span>
+            </div>
+            <div class="window-banner-sub" id="banner-subtitle">Searching across all indexed documents and videos</div>
+          </div>
+        </div>
+
+        <div class="window-banner-actions">
+          <button id="toggle-player-btn" class="btn-banner-action" style="display: none;" title="Toggle YouTube Video Player">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            <span id="toggle-player-label">Show Player</span>
+          </button>
+          <button id="export-chat-btn" class="btn-banner-action" title="Export conversation as Markdown notes">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export Notes</span>
+          </button>
+          <button id="clear-window-chat-btn" class="btn-banner-action" title="Clear chat in this window">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <span>Clear Chat</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Media Preview Panel (for YouTube Video Player) -->
+      <div class="media-preview-panel" id="media-preview-panel" style="display: none;">
+        <div class="media-player-wrapper">
+          <iframe id="youtube-player-iframe" src="" title="YouTube Video Player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+      </div>
+
       <div id="chat-history" class="chat-history">
         
         <!-- Welcome Hero (shown when chat is empty) -->
@@ -121,21 +171,21 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             Private & Self-Hosted AI
           </div>
-          <h2 class="hero-title">Talk to your Documents</h2>
-          <p class="hero-subtitle">Upload files, configure your preferred LLM & Embedding keys, and experience seamless RAG retrieval.</p>
+          <h2 class="hero-title" id="hero-title">Talk to your Documents</h2>
+          <p class="hero-subtitle" id="hero-subtitle">Upload files, configure your preferred LLM & Embedding keys, and experience seamless RAG retrieval.</p>
           
-          <div class="suggested-grid">
-            <div class="suggested-card" onclick="DocuMindApp.insertPrompt('Summarize the key insights from the uploaded documents.')">
-              <div class="suggested-card-title">📄 Document Summary</div>
-              <div class="suggested-card-desc">Get a high-level briefing of your files.</div>
+          <div class="suggested-grid" id="suggested-grid">
+            <div class="suggested-card" onclick="DocuMindApp.insertPrompt('Summarize the key insights from this material.')">
+              <div class="suggested-card-title">📄 Summary</div>
+              <div class="suggested-card-desc">Get a high-level briefing of this material.</div>
             </div>
             <div class="suggested-card" onclick="DocuMindApp.insertPrompt('What are the main action items or takeaways?')">
               <div class="suggested-card-title">🎯 Action Items</div>
               <div class="suggested-card-desc">Extract bullet points and critical decisions.</div>
             </div>
-            <div class="suggested-card" onclick="DocuMindApp.insertPrompt('Explain the complex technical concepts described in the documents.')">
+            <div class="suggested-card" onclick="DocuMindApp.insertPrompt('Explain the technical concepts described in this content.')">
               <div class="suggested-card-title">💡 Deep Dive</div>
-              <div class="suggested-card-desc">Explain technical concepts in simple terms.</div>
+              <div class="suggested-card-desc">Explain key concepts in simple terms.</div>
             </div>
             <div class="suggested-card" onclick="DocuMindSettings.open()">
               <div class="suggested-card-title">⚙️ Configure API Keys</div>
@@ -148,8 +198,19 @@
 
       <!-- Chat Input Area -->
       <div class="chat-input-wrapper">
+        <div class="quick-action-pills" id="quick-action-pills">
+          <button class="action-pill" onclick="DocuMindApp.insertPrompt('Summarize the core concepts and key highlights of this material.')" title="Executive Summary">
+            ⚡ Summary
+          </button>
+          <button class="action-pill" onclick="DocuMindApp.insertPrompt('Extract the critical takeaways, key formulas, and main definitions.')" title="Key Takeaways">
+            🎯 Key Takeaways
+          </button>
+          <button class="action-pill" onclick="DocuMindApp.insertPrompt('Generate 5 challenging quiz questions based on this content with answers.')" title="Practice Questions">
+            ❓ 5 Practice Questions
+          </button>
+        </div>
         <div class="input-box-container">
-          <button id="upload-btn-inline" class="btn-icon" style="width:34px; height:34px;" title="Attach Documents">
+          <button id="upload-btn-inline" class="btn-icon" title="Attach Documents">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
           </button>
           <textarea id="chat-textarea" class="chat-textarea" rows="1" placeholder="Ask a question about your documents... (Shift+Enter for newline)"></textarea>
@@ -269,6 +330,8 @@
             <label class="form-label">Chunk Overlap</label>
             <input type="number" id="input-chunk-overlap" class="form-input" value="200" min="0" max="1000">
           </div>
+        </div>
+
         <!-- AI Guardrails Section -->
         <h4 style="font-size: 0.95rem; color: #a5b4fc; margin-top: 10px; margin-bottom: -8px;">3. AI Safety Guardrails</h4>
         <div class="rag-toggle-wrapper" style="margin-top: 4px; padding: 12px 14px;">
@@ -293,12 +356,35 @@
     </div>
   </div>
 
+  <!-- Reusable Confirmation Dialog Modal -->
+  <div id="confirm-modal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="confirm-modal-title" style="display:flex; align-items:center; gap:8px;">
+          <span id="confirm-modal-icon" style="font-size: 1.15rem;">🗑️</span>
+          <span id="confirm-modal-heading">Confirm Action</span>
+        </h3>
+        <button id="close-confirm-btn" class="btn-icon" style="border:none;" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 20px 24px; gap: 10px;">
+        <p id="confirm-modal-message" style="font-size: 0.90rem; color: var(--text-main); line-height: 1.5;"></p>
+        <p style="font-size: 0.76rem; color: var(--text-subtle); margin: 0;">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer" style="padding: 14px 24px;">
+        <button id="confirm-modal-cancel" class="btn-secondary" type="button">Cancel</button>
+        <button id="confirm-modal-action" class="btn-primary" type="button" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Root -->
   <div id="toast-container"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/settings.js"></script>
-  <script src="/static/js/docs.js"></script>
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/settings.js?v=6"></script>
+  <script src="/static/js/app.js?v=6"></script>
+  <script src="/static/js/docs.js?v=6"></script>
 </body>
 </html>

@@ -33,7 +33,7 @@ const DocuMindSettings = {
       if (val === 'openai') modelInput.value = 'gpt-4o-mini';
       else if (val === 'gemini') modelInput.value = 'gemini-1.5-flash';
       else if (val === 'anthropic') modelInput.value = 'claude-3-5-sonnet-20240620';
-      else if (val === 'groq') modelInput.value = 'openai/gpt-oss-120b';
+      else if (val === 'groq') modelInput.value = 'llama-3.3-70b-versatile';
     });
 
     const embedSelect = document.getElementById('select-embedding-provider');
@@ -46,10 +46,11 @@ const DocuMindSettings = {
     });
 
     const mainGuardrailsToggle = document.getElementById('strict-guardrails-main-toggle');
+    const modalGuardrailsToggle = document.getElementById('strict-guardrails-toggle');
+
     mainGuardrailsToggle?.addEventListener('change', async (e) => {
       const isChecked = e.target.checked;
-      const modalToggle = document.getElementById('strict-guardrails-toggle');
-      if (modalToggle) modalToggle.checked = isChecked;
+      if (modalGuardrailsToggle) modalGuardrailsToggle.checked = isChecked;
       try {
         await fetch('/api/config', {
           method: 'POST',
@@ -60,6 +61,10 @@ const DocuMindSettings = {
       } catch (err) {
         console.error('Error updating guardrails:', err);
       }
+    });
+
+    modalGuardrailsToggle?.addEventListener('change', (e) => {
+      if (mainGuardrailsToggle) mainGuardrailsToggle.checked = e.target.checked;
     });
   },
 
@@ -179,6 +184,7 @@ const DocuMindSettings = {
     payload.DEFAULT_EMBEDDING_PROVIDER = document.getElementById('select-embedding-provider')?.value;
     payload.DEFAULT_EMBEDDING_MODEL = document.getElementById('input-embedding-model')?.value?.trim();
     payload.CHUNK_SIZE = parseInt(document.getElementById('input-chunk-size')?.value) || 1000;
+    payload.CHUNK_OVERLAP = parseInt(document.getElementById('input-chunk-overlap')?.value) || 200;
     const isStrict = document.getElementById('strict-guardrails-toggle')?.checked ?? false;
     payload.STRICT_GUARDRAILS = isStrict;
     const mainGuardrailsToggle = document.getElementById('strict-guardrails-main-toggle');
@@ -217,4 +223,66 @@ const DocuMindSettings = {
   }
 };
 
+window.DocuMindSettings = DocuMindSettings;
+
+const DocuMindConfirm = {
+  show({ title = 'Confirm Action', message, confirmText = 'Delete', icon = '🗑️', onConfirm, isDanger = true }) {
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) {
+      if (window.confirm(message)) {
+        if (typeof onConfirm === 'function') onConfirm();
+      }
+      return;
+    }
+
+    const heading = document.getElementById('confirm-modal-heading');
+    const msg = document.getElementById('confirm-modal-message');
+    const actionBtn = document.getElementById('confirm-modal-action');
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+    const closeBtn = document.getElementById('close-confirm-btn');
+    const iconEl = document.getElementById('confirm-modal-icon');
+
+    if (heading) heading.textContent = title;
+    if (msg) msg.textContent = message || 'Are you sure you want to proceed?';
+    if (iconEl) iconEl.textContent = icon;
+
+    if (actionBtn) {
+      actionBtn.textContent = confirmText;
+      actionBtn.style.background = isDanger
+        ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+        : 'var(--accent-gradient)';
+      actionBtn.style.boxShadow = isDanger
+        ? '0 4px 14px rgba(239, 68, 68, 0.35)'
+        : 'var(--accent-glow)';
+    }
+
+    const cleanup = () => {
+      modal.classList.remove('open');
+      if (actionBtn) actionBtn.onclick = null;
+      if (cancelBtn) cancelBtn.onclick = null;
+      if (closeBtn) closeBtn.onclick = null;
+      modal.onclick = null;
+    };
+
+    if (actionBtn) {
+      actionBtn.onclick = () => {
+        cleanup();
+        if (typeof onConfirm === 'function') {
+          onConfirm();
+        }
+      };
+    }
+
+    if (cancelBtn) cancelBtn.onclick = cleanup;
+    if (closeBtn) closeBtn.onclick = cleanup;
+
+    modal.onclick = (e) => {
+      if (e.target === modal) cleanup();
+    };
+
+    modal.classList.add('open');
+  }
+};
+
+window.DocuMindConfirm = DocuMindConfirm;
 document.addEventListener('DOMContentLoaded', () => DocuMindSettings.init());

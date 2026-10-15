@@ -29,7 +29,8 @@ async def upload_and_index_documents(files: List[UploadFile] = File(...)):
 
     results = []
     for file in files:
-        filename = file.filename
+        raw_name = file.filename or "uploaded_file"
+        filename = Path(raw_name).name  # Sanitize against path traversal attacks
         dest_path = UPLOADS_DIR / filename
 
         try:
@@ -70,16 +71,19 @@ async def index_youtube_video(payload: YouTubeIndexRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{filename}")
+@router.delete("/{filename:path}")
 async def delete_document(filename: str):
     """Removes a document from the vector store and disk."""
+    import urllib.parse
+    filename = urllib.parse.unquote(filename)
     success = vector_store_manager.delete_document(filename)
-    dest_path = UPLOADS_DIR / filename
-    if dest_path.exists():
-        try:
+    try:
+        sanitized_name = Path(filename).name
+        dest_path = (UPLOADS_DIR / sanitized_name).resolve()
+        if dest_path.is_file() and dest_path.is_relative_to(UPLOADS_DIR.resolve()):
             dest_path.unlink()
-        except Exception as e:
-            print(f"Error removing file {dest_path}: {e}")
+    except Exception as e:
+        print(f"File delete note for {filename}: {e}")
 
     if not success:
         raise HTTPException(status_code=500, detail="Failed to delete document from vector index.")

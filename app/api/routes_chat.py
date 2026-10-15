@@ -16,6 +16,7 @@ class ChatStreamRequest(BaseModel):
     temperature: Optional[float] = None
     use_rag: bool = True
     strict_guardrails: Optional[bool] = None
+    scope: Optional[str] = None
 
 
 @router.post("/stream")
@@ -31,7 +32,8 @@ async def chat_stream_endpoint(payload: ChatStreamRequest):
             model=payload.model,
             temperature=payload.temperature,
             use_rag=payload.use_rag,
-            strict_guardrails=payload.strict_guardrails
+            strict_guardrails=payload.strict_guardrails,
+            scope=payload.scope
         ),
         media_type="text/event-stream"
     )

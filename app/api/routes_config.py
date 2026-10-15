@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 
 from app.config import get_public_settings, save_settings, get_api_key
 from app.core.model_factory import test_connection
+from app.core.vector_store import vector_store_manager
 
 router = APIRouter(prefix="/api/config", tags=["Configuration"])
 
@@ -38,7 +39,10 @@ async def get_config() -> Dict[str, Any]:
 async def update_config(payload: SettingsUpdateRequest) -> Dict[str, Any]:
     """Updates API keys and model preferences, saving persistently."""
     updates = payload.model_dump(exclude_unset=True)
-    return save_settings(updates)
+    res = save_settings(updates)
+    # Invalidate cached vector store so new embeddings take effect immediately
+    vector_store_manager.reset_cache()
+    return res
 
 
 @router.post("/test")

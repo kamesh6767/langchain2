@@ -56,19 +56,38 @@ def get_api_key(provider: str) -> Optional[str]:
     return None
 
 
+def parse_bool(val: Any, default: bool = True) -> bool:
+    if val is None:
+        return default
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, (int, float)):
+        return bool(val)
+    if isinstance(val, str):
+        normalized = val.strip().lower()
+        if normalized in ("false", "0", "no", "off", "f"):
+            return False
+        if normalized in ("true", "1", "yes", "on", "t"):
+            return True
+    return bool(val)
+
+
 def get_setting(key: str, default: Any = None) -> Any:
     stored = _load_stored_settings()
-    if key in stored:
+    if key in stored and stored[key] is not None:
         return stored[key]
-    return os.getenv(key, default)
+    val = os.getenv(key)
+    if val is not None:
+        return val
+    return default
 
 
 def save_settings(new_settings: Dict[str, Any]) -> Dict[str, Any]:
     current = _load_stored_settings()
     for k, v in new_settings.items():
         if v is not None:
-            # If the user passed a masked string like 'sk-...1234', don't overwrite if not changed
-            if isinstance(v, str) and v.startswith("•••"):
+            # If the user passed a masked string like '••••••••', don't overwrite
+            if isinstance(v, str) and (v.startswith("•••") or v.startswith("****")):
                 continue
             current[k] = v.strip() if isinstance(v, str) else v
     _save_stored_settings(current)
@@ -93,6 +112,27 @@ def get_public_settings() -> Dict[str, Any]:
     anthropic_key = get_api_key("anthropic")
     groq_key = get_api_key("groq")
 
+    def _safe_int(val: Any, default: int) -> int:
+        try:
+            return int(val) if val is not None else default
+        except (ValueError, TypeError):
+            return default
+
+    def _safe_float(val: Any, default: float) -> float:
+        try:
+            return float(val) if val is not None else default
+        except (ValueError, TypeError):
+            return default
+
+    chunk_size = _safe_int(stored.get("CHUNK_SIZE", os.getenv("CHUNK_SIZE")), 1000)
+    chunk_overlap = _safe_int(stored.get("CHUNK_OVERLAP", os.getenv("CHUNK_OVERLAP")), 200)
+    temperature = _safe_float(stored.get("TEMPERATURE", os.getenv("TEMPERATURE")), 0.7)
+
+    raw_guardrails = stored.get("STRICT_GUARDRAILS")
+    if raw_guardrails is None:
+        raw_guardrails = os.getenv("STRICT_GUARDRAILS", True)
+    strict_guardrails = parse_bool(raw_guardrails, default=True)
+
     return {
         "keys_configured": {
             "openai": bool(openai_key),
@@ -110,8 +150,8 @@ def get_public_settings() -> Dict[str, Any]:
         "default_llm_model": stored.get("DEFAULT_LLM_MODEL") or os.getenv("DEFAULT_LLM_MODEL", "gpt-4o-mini"),
         "default_embedding_provider": stored.get("DEFAULT_EMBEDDING_PROVIDER") or os.getenv("DEFAULT_EMBEDDING_PROVIDER", "openai"),
         "default_embedding_model": stored.get("DEFAULT_EMBEDDING_MODEL") or os.getenv("DEFAULT_EMBEDDING_MODEL", "text-embedding-3-small"),
-        "chunk_size": int(stored.get("CHUNK_SIZE", 1000)),
-        "chunk_overlap": int(stored.get("CHUNK_OVERLAP", 200)),
-        "temperature": float(stored.get("TEMPERATURE", 0.7)),
-        "strict_guardrails": bool(stored.get("STRICT_GUARDRAILS", True)),
+        "chunk_size": chunk_size,
+        "chunk_overlap": chunk_overlap,
+        "temperature": temperature,
+        "strict_guardrails": strict_guardrails,
     }

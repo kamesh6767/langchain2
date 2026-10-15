@@ -7,10 +7,24 @@ echo "========================================================"
 echo ""
 
 if ! docker info >/dev/null 2>&1; then
-    echo "[ERROR] Docker is not running!"
-    echo "Please launch Docker and try again."
-    exit 1
+    echo "[NOTICE] Docker is not running or not installed."
+    echo "Launching DocuMind directly with Python..."
+    if ! python3 -c "import uvicorn" >/dev/null 2>&1; then
+        echo "[ERROR] Python environment is missing dependencies."
+        echo "Please run: pip install -r requirements.txt"
+        exit 1
+    fi
+    echo "Starting server at http://127.0.0.1:8000 ..."
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "http://localhost:8000" &
+    elif command -v open >/dev/null 2>&1; then
+        open "http://localhost:8000" &
+    fi
+    python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+    exit 0
 fi
+
+mkdir -p data/chroma data/uploads data/config
 
 echo "[1/3] Building and starting Docker container..."
 docker compose up -d --build

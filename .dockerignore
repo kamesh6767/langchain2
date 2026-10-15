@@ -1,0 +1,38 @@
+# Git & GitHub
+.git/
+.github/
+.gitignore
+
+# Local persistent data (mounted via volume, never baked into image)
+data/
+chroma_db/
+uploads/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# Local OS & scripts
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+run.bat
+run_local.bat
+run.sh

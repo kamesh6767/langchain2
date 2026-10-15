@@ -17,7 +17,7 @@ Users can clone this repository, run a single command in their terminal, and imm
 Paste this command into your **Command Prompt**, **PowerShell**, or **Bash**:
 
 ```bash
-git clone https://github.com/<your-username>/langchain2.git && cd langchain2 && docker compose up -d --build
+git clone https://github.com/kamesh6767/langchain2.git && cd langchain2 && docker compose up -d --build
 ```
 
 *(On Windows, you can also just double-click `run.bat`)*
@@ -60,15 +60,18 @@ GROQ_API_KEY=gsk_...
 
 ## 🚀 Key Features
 
-- **YouTube Video Transcripts:** Paste any YouTube link (watch link, shortened `youtu.be`, or embed) to fetch and embed timestamped transcripts into vector memory.
+- **YouTube Video Transcripts:** Paste any YouTube link (watch link, shortened `youtu.be`, or embed) to fetch and embed timestamped transcripts into vector memory with an embedded media player.
 - **🛡️ Strict AI Guardrails:** Built-in domain guardrail policy that strictly refuses any query outside the scope of the provided YouTube video or uploaded documents, preventing hallucinations and off-topic conversations.
-- **Document Q&A (RAG):** Drag and drop your **PDFs**, **DOCX**, **TXT**, **Markdown**, or **CSV** files into the sidebar.
+- **Multi-Format Document Vault:** Drag and drop **PDFs**, Word (**DOCX** including complex tables), PowerPoint presentations (**PPTX**), spreadsheets (**XLSX**, **XLS**), **Markdown**, **TXT**, **CSV**, and **JSON**.
+- **Isolated Document Windows:** Dedicated chat tabs for each document and YouTube video, allowing focused questions without cross-document interference.
+- **⚡ AI Quick Action Pills:** Instant one-click prompt pills for *⚡ Executive Summary*, *🎯 Key Takeaways*, and *❓ 5 Practice Questions*.
+- **📥 One-Click Markdown Export:** Export any conversation into clean, structured Markdown (`.md`) study notes with timestamps and citations.
 - **Persistent Vector Storage:** Powered by **ChromaDB**. Document embeddings are saved in `./data/chroma/` and preserved across container restarts.
-- **Multi-Provider LLM & Embeddings:**
-  - **LLMs:** OpenAI (`gpt-4o-mini`), Google Gemini (`gemini-1.5-flash`), Anthropic Claude (`claude-3-5-sonnet`), and Groq (`llama-3.1`).
-  - **Embeddings:** OpenAI (`text-embedding-3-small`), Google Gemini (`embedding-001`), or **HuggingFace (`all-MiniLM-L6-v2`)** which runs completely on local CPU with zero API costs!
+- **Multi-Provider LLM & Zero-Cost Embeddings:**
+  - **LLMs:** OpenAI, Google Gemini, Anthropic Claude, and Groq (`openai/gpt-oss-120b`, `qwen/qwen3.8-27b`, etc.).
+  - **Embeddings:** OpenAI, Google Gemini, or **HuggingFace (`sentence-transformers/all-MiniLM-L6-v2`)** which runs 100% locally on CPU with zero API costs!
 - **Real-Time Streaming with Source Citations:** Streams token-by-token responses and displays expandable citation cards showing the source file and chunk preview.
-- **Glassmorphic Dark UI:** Modern, responsive interface with fast zero-build static asset delivery.
+- **CI/CD Ready:** Automated GitHub Actions workflow (`.github/workflows/ci.yml`) runs the full test suite on every push.
 
 ---
 
